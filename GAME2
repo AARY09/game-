@@ -1,0 +1,179 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <Ɵme.h>
+#define ROWS 6
+#define COLS 6
+#define NUM_CANDY_TYPES 5
+#define TARGET_SCORE 100
+#define POINTS_PER_CANDY 10
+#define MAX_STACK_SIZE 100
+#define MAX_QUEUE_SIZE 100
+typedef struct {
+ int board[ROWS][COLS];
+ int score;
+} GameState;
+typedef struct {
+ GameState states[MAX_STACK_SIZE];
+ int top;
+} StateStack;
+typedef struct {
+ int candies[MAX_QUEUE_SIZE];
+ int front, rear;
+} CandyQueue;
+typedef struct Node {
+ int board[ROWS][COLS];
+ int score;
+ struct Node* next;
+} Node;
+Node* head = NULL;
+void push(StateStack* stack, int board[ROWS][COLS], int score) {
+ if (stack->top < MAX_STACK_SIZE - 1) {
+ stack->top++;
+ for (int i = 0; i < ROWS; i++)
+ for (int j = 0; j < COLS; j++)
+ stack->states[stack->top].board[i][j] = board[i][j];
+ stack->states[stack->top].score = score;
+ }
+}
+GameState pop(StateStack* stack) {
+ if (stack->top >= 0) {
+ return stack->states[stack->top--];
+ }
+ return (GameState){{0}, 0};
+}
+void enqueue(CandyQueue* queue, int candy) {
+ if ((queue->rear + 1) % MAX_QUEUE_SIZE != queue->front) {
+ queue->candies[queue->rear] = candy;
+ queue->rear = (queue->rear + 1) % MAX_QUEUE_SIZE;
+ }
+}
+int dequeue(CandyQueue* queue) {
+ if (queue->front != queue->rear) {
+ int candy = queue->candies[queue->front];
+ queue->front = (queue->front + 1) % MAX_QUEUE_SIZE;
+ return candy;
+ }
+ return -1;
+}
+void addMove(int board[ROWS][COLS], int score) {
+ Node* newNode = (Node*)malloc(sizeof(Node));
+ for (int i = 0; i < ROWS; i++)
+ for (int j = 0; j < COLS; j++)
+ newNode->board[i][j] = board[i][j];
+ newNode->score = score;
+ newNode->next = head;
+ head = newNode;
+}
+void freeMoves() {
+ Node* temp;
+ while (head) {
+ temp = head;
+ head = head->next;
+ free(temp);
+ }
+}
+int main() {
+ int board[ROWS][COLS];
+ StateStack stack = {.top = -1};
+ CandyQueue candyQueue = {.front = 0, .rear = 0};
+ int x1, y1, x2, y2;
+ int score = 0;
+ srand(Ɵme(0));
+ for (int i = 0; i < ROWS; i++) {
+ for (int j = 0; j < COLS; j++) {
+ board[i][j] = rand() % NUM_CANDY_TYPES + 1;
+ }
+ }
+ prinƞ("IniƟal Board:\n");
+ for (int i = 0; i < ROWS; i++) {
+ for (int j = 0; j < COLS; j++) {
+ prinƞ("%d ", board[i][j]);
+ }
+ prinƞ("\n");
+ }
+ for (int i = 0; i < 10; i++) {
+ enqueue(&candyQueue, rand() % NUM_CANDY_TYPES + 1);
+ }
+ while (score < TARGET_SCORE) {
+ prinƞ("Score: %d / %d\n", score, TARGET_SCORE);
+ prinƞ("Enter the coordinates of two candies to swap (x1 y1 x2 y2) or -1 to undo:\n");
+ scanf("%d", &x1);
+ if (x1 == -1) {
+ if (stack.top >= 0) {
+ GameState previousState = pop(&stack);
+ for (int i = 0; i < ROWS; i++)
+ for (int j = 0; j < COLS; j++)
+ board[i][j] = previousState.board[i][j];
+ score = previousState.score;
+ prinƞ("Undo successful!\n");
+ for (int i = 0; i < ROWS; i++) {
+ for (int j = 0; j < COLS; j++) {
+ prinƞ("%d ", board[i][j]);
+ }
+ prinƞ("\n");
+ }
+ conƟnue;
+ } else {
+ prinƞ("No moves to undo!\n");
+ conƟnue;
+ }
+ }
+ scanf("%d %d %d", &y1, &x2, &y2);
+
+ push(&stack, board, score);
+
+ int temp = board[x1][y1];
+ board[x1][y1] = board[x2][y2];
+ board[x2][y2] = temp;
+ prinƞ("Board aŌer swap:\n");
+ for (int i = 0; i < ROWS; i++) {
+ for (int j = 0; j < COLS; j++) {
+ prinƞ("%d ", board[i][j]);
+ }
+ prinƞ("\n");
+ }
+ addMove(board, score);
+ int foundMatch = 0;
+ for (int i = 0; i < ROWS; i++) {
+ for (int j = 0; j < COLS - 2; j++) {
+ if (board[i][j] == board[i][j + 1] && board[i][j] == board[i][j + 2]) {
+ foundMatch = 1;
+ score += 3 * POINTS_PER_CANDY;
+ board[i][j] = board[i][j + 1] = board[i][j + 2] = 0;
+ }
+ }
+ }
+ for (int i = 0; i < COLS; i++) {
+ for (int j = 0; j < ROWS - 2; j++) {
+ if (board[j][i] == board[j + 1][i] && board[j][i] == board[j + 2][i]) {
+ foundMatch = 1;
+ score += 3 * POINTS_PER_CANDY;
+ board[j][i] = board[j + 1][i] = board[j + 2][i] = 0;
+ }
+ }
+ }
+ if (foundMatch) {
+ prinƞ("Matches found! Clearing...\n");
+ for (int i = 0; i < ROWS; i++) {
+ for (int j = 0; j < COLS; j++) {
+ if (board[i][j] == 0) {
+ board[i][j] = dequeue(&candyQueue);
+ enqueue(&candyQueue, rand() % NUM_CANDY_TYPES + 1);
+ }
+ }
+ }
+ prinƞ("Board aŌer clearing matches and refilling:\n");
+ for (int i = 0; i < ROWS; i++) {
+ for (int j = 0; j < COLS; j++) {
+ prinƞ("%d ", board[i][j]);
+ }
+ prinƞ("\n");
+ }
+ } else {
+ prinƞ("No matches found. Try another move.\n");
+ }
+ }
+ prinƞ("CongratulaƟons! You've reached the target score of %d!\n", TARGET_SCORE);
+ freeMoves();
+ return 0;
+} 
